@@ -1,4 +1,3 @@
-
 #include <SoftwareSerial.h>
 
 // Comandos do MP3
@@ -26,10 +25,12 @@ const int Verde = 5;
 const int Amarelo = 9;
 const int Vermelho = 11;
 
-// Sensor
-const int PinSensor = A0;
+// Sensor de som
+const int PinSensor = A1;
+const int janela = 50;            // ms de amostragem para medir a amplitude
+const int amplitudeMax = 300;     // amplitude que corresponde ao volume máximo (ajuste conforme seu sensor)
 
-int valorSensor = 0;
+int amplitude = 0;
 int volume = 0;
 int volumeAnterior = -1;
 
@@ -104,6 +105,23 @@ void leds() {
 }
 
 
+// MEDE A AMPLITUDE DO SOM (máximo - mínimo na janela)
+int medirAmplitude() {
+
+  unsigned long inicio = millis();
+  int maximo = 0;
+  int minimo = 1023;
+
+  while (millis() - inicio < janela) {
+    int leitura = analogRead(PinSensor);
+    if (leitura > maximo) maximo = leitura;
+    if (leitura < minimo) minimo = leitura;
+  }
+
+  return maximo - minimo;
+}
+
+
 // LEITURA DO SENSOR E CONTROLE DO VOLUME
 void sensor() {
 
@@ -111,11 +129,10 @@ void sensor() {
 
   if (tempoAtual - tempoAnterior >= intervaloSensor) {
 
-    valorSensor = analogRead(PinSensor);
+    amplitude = medirAmplitude();
 
-    volume = map(valorSensor, 0, 1023, 0, 30);
-
-    volume = constrain(volume, 0, 30);
+    volume = map(amplitude, 0, amplitudeMax, 0, 200);
+    volume = constrain(volume, 0, 200);
 
     // Envia o volume ao MP3 somente quando mudar
     if (volume != volumeAnterior) {
@@ -125,13 +142,13 @@ void sensor() {
       volumeAnterior = volume;
     }
 
-    Serial.print("Sensor: ");
-    Serial.print(valorSensor);
+    Serial.print("Amplitude: ");
+    Serial.print(amplitude);
 
     Serial.print(" | Volume: ");
     Serial.println(volume);
 
-    tempoAnterior = tempoAtual;
+    tempoAnterior = millis();
   }
 }
 
