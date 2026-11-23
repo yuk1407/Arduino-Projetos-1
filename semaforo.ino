@@ -28,9 +28,11 @@ const int Vermelho = 11;
 // Sensor de som
 const int PinSensor = A1;
 const int janela = 50;            // ms de amostragem para medir a amplitude
-const int amplitudeMax = 300;     // amplitude que corresponde ao volume máximo (ajuste conforme seu sensor)
+const int faixaMinima = 10;       // diferença mínima entre menor e maior som para calcular o volume
 
 int amplitude = 0;
+int amplitudeMenor = 1023;        // menor som captado no verde atual
+int amplitudeMaior = 0;           // maior som captado no verde atual
 int volume = 0;
 int volumeAnterior = -1;
 
@@ -59,6 +61,14 @@ void mp3_command(byte command, int16_t dat) {
   for (int i = 0; i < 8; i++) {
     mp3.write(packet[i]);
   }
+}
+
+
+// REINICIA O MENOR E O MAIOR SOM (chamado toda vez que vira verde)
+void resetarFaixaSom() {
+  amplitudeMenor = 1023;
+  amplitudeMaior = 0;
+  volumeAnterior = -1;
 }
 
 
@@ -99,6 +109,7 @@ void leds() {
       if (tempoAtual - tempoEstado >= 5000) {
         estadoSemaforo = 0;
         tempoEstado = tempoAtual;
+        resetarFaixaSom();   // voltou ao verde: zera menor/maior som
       }
       break;
   }
@@ -136,7 +147,16 @@ void sensor() {
 
     amplitude = medirAmplitude();
 
-    volume = map(amplitude, 0, amplitudeMax, 0, 200);
+    // Atualiza o menor e o maior som captados
+    if (amplitude < amplitudeMenor) amplitudeMenor = amplitude;
+    if (amplitude > amplitudeMaior) amplitudeMaior = amplitude;
+
+    // Volume proporcional entre o menor e o maior som
+    if (amplitudeMaior - amplitudeMenor >= faixaMinima) {
+      volume = map(amplitude, amplitudeMenor, amplitudeMaior, 0,200);
+    } else {
+      volume = 0;   // ainda não há variação suficiente para comparar
+    }
     volume = constrain(volume, 0, 200);
 
     // Envia o volume ao MP3 somente quando mudar
@@ -149,6 +169,12 @@ void sensor() {
 
     Serial.print("Amplitude: ");
     Serial.print(amplitude);
+
+    Serial.print(" | Menor: ");
+    Serial.print(amplitudeMenor);
+
+    Serial.print(" | Maior: ");
+    Serial.print(amplitudeMaior);
 
     Serial.print(" | Volume: ");
     Serial.println(volume);
@@ -169,6 +195,7 @@ void setup() {
   Serial.begin(9600);
 
   tempoEstado = millis();
+  resetarFaixaSom();
 
   mp3.begin(9600);
 
