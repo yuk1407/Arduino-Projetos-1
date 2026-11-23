@@ -122,8 +122,13 @@ int medirAmplitude() {
 }
 
 
-// LEITURA DO SENSOR E CONTROLE DO VOLUME
+// LEITURA DO SENSOR E CONTROLE DO VOLUME (apenas no verde)
 void sensor() {
+
+  // Só funciona quando o semáforo está verde
+  if (estadoSemaforo != 0) {
+    return;
+  }
 
   unsigned long tempoAtual = millis();
 
