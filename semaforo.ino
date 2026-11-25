@@ -151,11 +151,13 @@ void sensor() {
     if (amplitude < amplitudeMenor) amplitudeMenor = amplitude;
     if (amplitude > amplitudeMaior) amplitudeMaior = amplitude;
 
+    int amplitudeMedia = (amplitudeMaior + amplitudeMenor)/2;
+
     // Volume proporcional entre o menor e o maior som
     if (amplitudeMaior - amplitudeMenor >= faixaMinima) {
-      volume = map(amplitude, amplitudeMenor, amplitudeMaior, 0,200);
+      volume = map(amplitudeMedia, amplitudeMenor, 1023, 0,200);  
     } else {
-      volume = 0;   // ainda não há variação suficiente para comparar
+      volume = 0;   // ainda não há variação suficiente para comparar  // amplitudeMedia é a média entre a maior e a menor amplitudes registradas
     }
     volume = constrain(volume, 0, 200);
 
@@ -175,6 +177,9 @@ void sensor() {
 
     Serial.print(" | Maior: ");
     Serial.print(amplitudeMaior);
+
+    Serial.print(" | Media: ");
+    Serial.print(amplitudeMedia);
 
     Serial.print(" | Volume: ");
     Serial.println(volume);
