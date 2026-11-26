@@ -151,21 +151,12 @@ void sensor() {
 
     int amplitudeMedia = (amplitudeMaior + amplitudeMenor) / 2;
 
-<<<<<<< HEAD
     // Volume proporcional à média entre o menor e o maior som (0 a 30)
     volume = map(amplitudeMedia, 0, 1023, 0, VOLUME_MAXIMO);
 
-    if (volume < 5) volume = 5;   // piso do volume
+    if (volume < 5) volume = ;   // piso do volume
 
     volume = constrain(volume, 0, VOLUME_MAXIMO);
-=======
-    // Volume proporcional entre o menor e o maior som
-    volume = map(amplitudeMedia, 0, 1023, 0,200);  
-
-    if (volume < 5) volume = 5;   // piso do volume
-    
-    volume = constrain(volume, 0, 200);
->>>>>>> b489467362b39633b5e68a54f2f8160116da1a8d
 
     // Envia o volume ao MP3 somente quando mudar
     if (volume != volumeAnterior) {
