@@ -1,17 +1,16 @@
 #include <SoftwareSerial.h>
 
 // Comandos do MP3
-#define CMD_PLAY_NEXT 0x01
-#define CMD_PLAY_PREV 0x02
 #define CMD_PLAY_W_INDEX 0x03
-#define CMD_SET_VOLUME 0x06
-#define CMD_SEL_DEV 0x09
-#define CMD_PLAY_W_VOL 0x22
-#define CMD_PLAY 0x0D
-#define CMD_PAUSE 0x0E
+#define CMD_SET_VOLUME   0x06
+#define CMD_SEL_DEV      0x09
 #define CMD_SINGLE_CYCLE 0x19
 
-#define DEV_TF 0x02
+#define DEV_TF           0x02
+#define SINGLE_CYCLE_ON  0x00
+#define SINGLE_CYCLE_OFF 0x01
+
+#define VOLUME_MAXIMO 30   // o YX5300 aceita de 0 a 30
 
 // Arduino RX = 7 (recebe do TX do MP3)
 // Arduino TX = 6 (envia para o RX do MP3)
@@ -28,7 +27,6 @@ const int Vermelho = 11;
 // Sensor de som
 const int PinSensor = A1;
 const int janela = 50;            // ms de amostragem para medir a amplitude
-const int faixaMinima = 10;       // diferença mínima entre menor e maior som para calcular o volume
 
 int amplitude = 0;
 int amplitudeMenor = 1023;        // menor som captado no verde atual
@@ -68,7 +66,7 @@ void mp3_command(byte command, int16_t dat) {
 void resetarFaixaSom() {
   amplitudeMenor = 1023;
   amplitudeMaior = 0;
-  volumeAnterior = -1;
+  volumeAnterior = -1;   // força reenviar o volume no próximo verde
 }
 
 
@@ -151,20 +149,27 @@ void sensor() {
     if (amplitude < amplitudeMenor) amplitudeMenor = amplitude;
     if (amplitude > amplitudeMaior) amplitudeMaior = amplitude;
 
-    int amplitudeMedia = (amplitudeMaior + amplitudeMenor)/2;
+    int amplitudeMedia = (amplitudeMaior + amplitudeMenor) / 2;
 
+<<<<<<< HEAD
+    // Volume proporcional à média entre o menor e o maior som (0 a 30)
+    volume = map(amplitudeMedia, 0, 1023, 0, VOLUME_MAXIMO);
+
+    if (volume < 5) volume = 5;   // piso do volume
+
+    volume = constrain(volume, 0, VOLUME_MAXIMO);
+=======
     // Volume proporcional entre o menor e o maior som
     volume = map(amplitudeMedia, 0, 1023, 0,200);  
 
     if (volume < 5) volume = 5;   // piso do volume
     
     volume = constrain(volume, 0, 200);
+>>>>>>> b489467362b39633b5e68a54f2f8160116da1a8d
 
     // Envia o volume ao MP3 somente quando mudar
     if (volume != volumeAnterior) {
-
       mp3_command(CMD_SET_VOLUME, volume);
-
       volumeAnterior = volume;
     }
 
@@ -202,14 +207,18 @@ void setup() {
   resetarFaixaSom();
 
   mp3.begin(9600);
+  delay(500);                                  // espera o chip iniciar
 
-  delay(500);
-
-  mp3_command(CMD_SEL_DEV, DEV_TF);
-
+  mp3_command(CMD_SEL_DEV, DEV_TF);            // seleciona o cartão microSD
   delay(200);
 
-  mp3_command(CMD_PLAY, 0x0000);
+  mp3_command(CMD_SET_VOLUME, 5);              // volume inicial baixo
+  delay(100);
+
+  mp3_command(CMD_PLAY_W_INDEX, 1);            // toca a faixa 0001.mp3
+  delay(200);
+
+  mp3_command(CMD_SINGLE_CYCLE, SINGLE_CYCLE_ON);  // repete a faixa em loop
 }
 
 
