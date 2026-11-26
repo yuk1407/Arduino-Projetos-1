@@ -27,12 +27,22 @@ const int Vermelho = 11;
 // Sensor de som
 const int PinSensor = A1;
 const int janela = 50;            // ms de amostragem para medir a amplitude
+const int faixaMinima = 30;       // faixa mínima entre menor e maior, evita que ruído vire variação grande
+const int volumeMinimoSilencio = 8;   // volume mínimo em lugares silenciosos
+const int volumeMinimoNormal = 15;    // volume mínimo em lugares com mais barulho
+const int limiteSilencio = 15;        // maior amplitude abaixo disso = lugar silencioso
+const int limiteBarulho = 60;         // maior amplitude acima disso = lugar barulhento
 
 int amplitude = 0;
 int amplitudeMenor = 1023;        // menor som captado no verde atual
 int amplitudeMaior = 0;           // maior som captado no verde atual
 int volume = 0;
 int volumeAnterior = -1;
+const unsigned long tempoCalibracao = 2000;  // ms no início do verde só para aprender o ambiente
+unsigned long inicioVerde = 0;
+int volumePico = 0;               // maior volume atingido no verde atual (fica mantido)
+float volumeSuave = 0;            // volume suavizado (evita mudanças bruscas)
+const float suavizacao = 0.3;     // 0 a 1: menor = muda mais devagar
 
 // Controle de tempo
 unsigned long tempoAnterior = 0;
@@ -67,6 +77,9 @@ void resetarFaixaSom() {
   amplitudeMenor = 1023;
   amplitudeMaior = 0;
   volumeAnterior = -1;   // força reenviar o volume no próximo verde
+  volumePico = 0;        // zera o maior volume
+  inicioVerde = millis();  // começa a calibração
+  volumeSuave = volumeMinimoSilencio;
 }
 
 
@@ -151,12 +164,34 @@ void sensor() {
 
     int amplitudeMedia = (amplitudeMaior + amplitudeMenor) / 2;
 
-    // Volume proporcional à média entre o menor e o maior som (0 a 30)
-    volume = map(amplitudeMedia, 0, 1023, 0, VOLUME_MAXIMO);
+    // Volume mínimo se adapta ao ambiente: silencioso = 8, barulhento = 15
+    int volumeMinimo = map(amplitudeMaior, limiteSilencio, limiteBarulho,
+                           volumeMinimoSilencio, volumeMinimoNormal);
+    volumeMinimo = constrain(volumeMinimo, volumeMinimoSilencio, volumeMinimoNormal);
 
-    if (volume < 5) volume = ;   // piso do volume
+    // Faixa captada até agora (com um mínimo para não amplificar ruído)
+    int faixa = amplitudeMaior - amplitudeMenor;
+    if (faixa < faixaMinima) faixa = faixaMinima;
 
-    volume = constrain(volume, 0, VOLUME_MAXIMO);
+    // Volume alvo segue a amplitude ATUAL dentro da faixa menor..maior
+    int volumeAlvo = volumeMinimo + (long)(amplitude - amplitudeMenor) * (VOLUME_MAXIMO - volumeMinimo) / faixa;
+    volumeAlvo = constrain(volumeAlvo, volumeMinimo, VOLUME_MAXIMO);
+
+    // Calibração: no início do verde a faixa ainda é minúscula e qualquer ruído
+    // viraria volume alto. Então fica no mínimo enquanto aprende o ambiente.
+    if (millis() - inicioVerde < tempoCalibracao) {
+      volumeAlvo = volumeMinimo;
+    }
+
+    // Suaviza para variar menos
+    volumeSuave = volumeSuave + suavizacao * (volumeAlvo - volumeSuave);
+    volume = (int)(volumeSuave + 0.5);
+
+    // Mantém o maior volume atingido: o volume não cai abaixo do pico
+    if (volume > volumePico) volumePico = volume;
+    volume = volumePico;
+
+    volume = constrain(volume, volumeMinimo, VOLUME_MAXIMO);
 
     // Envia o volume ao MP3 somente quando mudar
     if (volume != volumeAnterior) {
